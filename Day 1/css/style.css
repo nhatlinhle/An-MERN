@@ -10,7 +10,7 @@
 
 .container {
   display: block;
-  width: 1200px;
+  width: 1024px;
   margin: 0 auto;
   box-sizing: border-box;
 }
@@ -31,6 +31,11 @@
 
 .col-4 {
   width: calc((var(--w-col) * 4) - 16px);
+  box-sizing: border-box;
+}
+
+.col-6 {
+  width: calc((var(--w-col) * 6) - 16px);
   box-sizing: border-box;
 }
 
