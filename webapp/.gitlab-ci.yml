@@ -1,0 +1,26 @@
+stages:
+  - build
+  - deploy
+
+image: ubuntu
+.deploy:
+  stage: deploy
+  image: node:20
+  before_script:
+    - apt-get update
+  script:
+    - cp .env.uat .env
+    - npm ci
+    - npm run build
+    - npx vercel --prod --token $VERCEL_TOKEN
+  tags:
+    - first-shared-runner
+
+uat-deploy:
+  extends: .deploy
+  variables:
+    VERCEL_TOKEN: $UAT_VERCEL_TOKEN
+  environment:
+    name: UAT
+  only:
+    - uat
