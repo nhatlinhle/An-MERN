@@ -1,0 +1,45 @@
+:root {
+  --w-col: calc(100% / 12);
+}
+
+.grid {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.container {
+  display: block;
+  width: 1024px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.container-grid {
+  display: block;
+  width: 100%;
+}
+
+.row {
+  width: 100%;
+  display: flex;
+  box-sizing: border-box;
+}
+
+.col {
+}
+
+.col-4 {
+  width: calc((var(--w-col) * 4) - 16px);
+  box-sizing: border-box;
+}
+
+.col-6 {
+  width: calc((var(--w-col) * 6) - 16px);
+  box-sizing: border-box;
+}
+
+.col-8 {
+  width: calc((var(--w-col) * 8) - 16px);
+  box-sizing: border-box;
+}
