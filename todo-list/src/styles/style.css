@@ -1,0 +1,59 @@
+:root {
+  --w-col: calc(100% / 12);
+  --w-col-3: calc(((100% / 12) * 3) - 16px);
+  --w-col-9: calc(((100% / 12) * 9) - 16px);
+}
+
+.grid {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.container {
+  display: block;
+  width: 1224px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.container-grid {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.row {
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.col {
+  width: var(--w-col);
+  margin: 8px;
+  padding: -8px;
+  box-sizing: border-box;
+}
+
+.col-2 {
+  width: calc((var(--w-col) * 2) - 16px);
+  box-sizing: border-box;
+}
+
+.col-3 {
+  flex: 0 0 var(--w-col-3);
+  /* width: calc((var(--w-col) * 3) - 16px); */
+  box-sizing: border-box;
+}
+
+.col-9 {
+  flex: 0 0 var(--w-col-9);
+  /* width: calc((var(--w-col) * 9) - 16px); */
+  box-sizing: border-box;
+}
+
+.col-10 {
+  width: calc((var(--w-col) * 10) - 16px);
+  box-sizing: border-box;
+}

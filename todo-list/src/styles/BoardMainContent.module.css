@@ -1,0 +1,207 @@
+.box {
+  width: 100%;
+  height: 88vh;
+  background-color: hsla(250, 47.9%, 45.7%, 0.9);
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.board-name-container {
+  width: 100%;
+  background-color: #172b4d;
+  padding: 16px 32px 8px 32px;
+  box-sizing: border-box;
+  color: rgb(255, 255, 255);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.item2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.item2 i {
+  cursor: pointer;
+  transition: 500ms background-color ease;
+  padding: 4px 8px;
+  border-radius: 16%;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.item2 i svg {
+  width: 20px;
+}
+
+.item2 i:hover {
+  background-color: rgba(184, 180, 180, 0.751);
+}
+
+.test {
+  width: 100%;
+  height: 88vh;
+}
+
+.board {
+  display: flex;
+  white-space: nowrap;
+  min-width: 100%;
+  height: 76vh;
+  gap: 16px;
+  padding: 8px 16px;
+  overflow-x: auto;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #dad6d6 #28262670;
+}
+
+.list-wrapper {
+  min-width: 280px;
+  height: fit-content;
+  max-height: 69vh;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  background-color: aliceblue;
+  border-radius: 8px;
+  padding: 8px 3px;
+  background-color: var(--list-wrapper-bg-color);
+  color: #533f04;
+  box-sizing: border-box;
+  box-shadow: rgba(0, 0, 0, 0.16) 0px 10px 36px 0px,
+    rgba(0, 0, 0, 0.06) 0px 0px 0px 1px;
+}
+
+.list-header,
+.list-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #533f04;
+  box-sizing: border-box;
+}
+
+.list-header {
+  font-weight: bolder;
+  padding: 0 12px;
+}
+
+.list-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  max-height: 80%;
+  scrollbar-width: thin;
+  padding: 6px 8px 2px 8px;
+  box-sizing: border-box;
+}
+
+.card {
+  width: 100%;
+  background-color: rgb(255, 255, 255);
+  padding: 6px;
+  border-radius: 8px;
+  box-shadow: rgba(0, 0, 0, 0.05) 0px 6px 24px 0px,
+    rgba(0, 0, 0, 0.08) 0px 0px 0px 1px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-width 500ms ease, border-color 500ms ease;
+  box-sizing: border-box;
+}
+
+.card:hover {
+  border-width: 2px;
+  border-color: #388bff;
+}
+
+.list-footer {
+  margin: 8px 0 0 0;
+  padding: 0 8px;
+}
+
+.list-footer button {
+  flex: 9;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  cursor: pointer;
+  background-color: transparent;
+  border: transparent;
+  gap: 4px;
+  transition: background-color 500ms ease;
+  border-radius: 8px;
+  color: #533f04;
+  font-weight: 600;
+}
+
+.list-footer button i {
+  display: flex;
+  align-items: center;
+}
+
+.list-footer button i svg {
+  width: 18px;
+}
+
+.list-footer button:hover {
+  background-color: var(--btn-hover-bg);
+}
+
+.nav-icons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-icons i {
+  padding: 4px 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
+  transition: background-color 500ms ease;
+}
+
+.nav-icons i:hover {
+  background-color: var(--btn-hover-bg);
+}
+
+.nav-icons i svg {
+  width: 18px;
+}
+
+.btnAddWrapper {
+  min-width: 240px;
+}
+
+.btnAddWrapper button {
+  width: 100%;
+  cursor: pointer;
+  border: transparent;
+  background-color: #ffffff3d;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  gap: 8px;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.btnAddWrapper button i {
+  display: flex;
+  align-items: center;
+}
+
+.btnAddWrapper button i svg {
+  width: 18px;
+  height: 18px;
+}
