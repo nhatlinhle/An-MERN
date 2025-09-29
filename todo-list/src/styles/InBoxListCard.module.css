@@ -1,0 +1,197 @@
+.box {
+  max-width: inherit;
+  height: 88vh;
+  box-shadow: rgba(60, 64, 67, 0.3) 0px 1px 2px 0px,
+    rgba(60, 64, 67, 0.15) 0px 2px 6px 2px;
+  border-radius: 24px;
+  box-sizing: border-box;
+  background-color: #cfe1fd;
+  border: 1px solid rgba(60, 64, 67, 0.15);
+  position: relative;
+  overflow-y: hidden;
+}
+
+.navItem,
+.item1,
+.item2 {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.navItem {
+  justify-content: space-between;
+  padding: 16px 16px 8px 16px;
+  background-color: hsla(214, 91.3%, 95.5%, 0.9);
+}
+
+.item2 {
+  gap: 16px;
+}
+
+.item1 i,
+.item2 i {
+  cursor: pointer;
+}
+
+.item1 i svg,
+.item2 i svg {
+  width: 20px;
+}
+
+.item2 i {
+  cursor: pointer;
+  transition: 500ms background-color ease;
+  padding: 4px 8px;
+  border-radius: 16%;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.item2 i:hover {
+  background-color: rgba(184, 180, 180, 0.751);
+}
+
+.inboxBtnAddContext {
+  width: 100%;
+  padding: 8px 8px;
+}
+
+.inboxBtnAddContext button {
+  width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: transparent;
+  background-color: rgb(255, 255, 255);
+  box-shadow: rgba(0, 0, 0, 0.02) 0px 1px 3px 0px,
+    rgba(27, 31, 35, 0.15) 0px 0px 0px 1px;
+  transition: background-color 250ms ease;
+}
+
+.inboxBtnAddContext button:hover {
+  background-color: rgba(224, 217, 217, 0.808);
+}
+
+.yo {
+  margin-top: 4px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  max-height: 68%;
+}
+
+.listContext {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 8px;
+}
+
+.context {
+  width: 100%;
+  background-color: rgb(255, 255, 255);
+  padding: 6px;
+  border-radius: 8px;
+  box-shadow: rgba(0, 0, 0, 0.05) 0px 6px 24px 0px,
+    rgba(0, 0, 0, 0.08) 0px 0px 0px 1px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-width 300ms ease, border-color 300ms ease;
+  box-sizing: border-box;
+}
+
+.context:hover {
+  border-width: 2px;
+  border-color: #388bff;
+  box-shadow: rgba(60, 64, 67, 0.3) 0px 1px 2px 0px,
+    rgba(60, 64, 67, 0.15) 0px 1px 3px 1px;
+}
+
+.addContext {
+  padding: 0 8px;
+}
+
+.addContext textarea {
+  width: 100%;
+  border-radius: 8px;
+  padding: 8px;
+  outline: none;
+  border: none;
+  box-shadow: rgba(60, 64, 67, 0.3) 0px 1px 2px 0px,
+    rgba(60, 64, 67, 0.15) 0px 1px 3px 1px;
+  margin: 8px 0 4px 0;
+}
+
+.addContext div button:first-child {
+  min-width: 100px;
+}
+
+.listBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px 0;
+}
+
+.listBtn button {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 8px;
+  height: 40px;
+  outline: none;
+  border: none;
+}
+
+.listBtn button:nth-child(1) {
+  background-color: #388bff;
+  color: white;
+  box-shadow: rgba(50, 50, 93, 0.25) 0px 6px 12px -2px,
+    rgba(0, 0, 0, 0.3) 0px 3px 7px -3px;
+}
+
+.listBtn button:nth-child(2) {
+  background-color: transparent;
+}
+
+.listIcon {
+  width: calc(100% - 40px);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  gap: 8px;
+  background-color: #f1f2f4;
+  padding: 8px;
+  box-sizing: border-box;
+  border-radius: 16px;
+  bottom: 3%;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  box-shadow: rgba(50, 50, 93, 0.25) 0px 2px 5px -1px,
+    rgba(0, 0, 0, 0.3) 0px 1px 3px -1px;
+}
+
+.icon {
+  width: 56px;
+  height: 56px;
+  position: relative;
+  box-sizing: border-box;
+  padding: 4px;
+  background-color: #ffffff;
+  border-radius: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: rgba(60, 64, 67, 0.3) 0px 1px 2px 0px,
+    rgba(60, 64, 67, 0.15) 0px 2px 6px 2px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-width 500ms ease, border-color 500ms ease;
+}
+
+.icon:hover {
+  border-width: 2px;
+  border-color: #388bff;
+}

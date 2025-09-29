@@ -1,0 +1,62 @@
+.boxNav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+}
+
+.box1,
+.box2,
+.backHome {
+  display: flex;
+  align-items: center;
+}
+
+.box1 {
+  gap: 16px;
+}
+
+.backHome {
+  gap: 4px;
+}
+
+.box2 {
+  gap: 8px;
+  width: 55%;
+}
+
+.box2 input {
+  width: 80%;
+  padding: 7px;
+  outline: none;
+  border-radius: 4px;
+  border: 1px solid #000000;
+}
+
+.box2 button {
+  background-color: #1868db;
+  cursor: pointer;
+  color: white;
+  padding: 8px;
+  outline: none;
+  border: none;
+  border-radius: 4px;
+  width: 90px;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.navItem div {
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 16%;
+  transition: 250ms background-color ease;
+}
+
+.navItem div:hover {
+  background-color: rgba(184, 180, 180, 0.751);
+}
