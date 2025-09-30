@@ -122,6 +122,44 @@
   border-color: #388bff;
 }
 
+.addContext textarea {
+  width: 100%;
+  border-radius: 8px;
+  padding: 8px;
+  outline: none;
+  border: none;
+  box-shadow: rgba(60, 64, 67, 0.3) 0px 1px 2px 0px,
+    rgba(60, 64, 67, 0.15) 0px 1px 3px 1px;
+  margin: 8px 0 4px 0;
+}
+
+.listBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px 0;
+}
+
+.listBtn button {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 8px;
+  height: 40px;
+  outline: none;
+  border: none;
+}
+
+.listBtn button:nth-child(1) {
+  background-color: #388bff;
+  color: white;
+  box-shadow: rgba(50, 50, 93, 0.25) 0px 6px 12px -2px,
+    rgba(0, 0, 0, 0.3) 0px 3px 7px -3px;
+}
+
+.listBtn button:nth-child(2) {
+  background-color: transparent;
+}
+
 .list-footer {
   margin: 8px 0 0 0;
   padding: 0 8px;

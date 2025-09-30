@@ -1,4 +1,4 @@
-import { ToDo, Wrapper } from "@/lib/types";
+import { ContextMenuPos, Contexts, ToDo, Wrapper } from "@/lib/types";
 import style from "@/styles/BoardMainContent.module.css";
 import { Draggable, Droppable } from "@hello-pangea/dnd";
 import {
@@ -8,14 +8,79 @@ import {
   ChevronsRightLeft,
   ImageUpscale,
   Plus,
+  X,
 } from "lucide-react";
+import { useCallback, useState } from "react";
+import ModalEdit from "../modal-edit/ModalEdit";
+import {
+  addContextToWrapper,
+  addWrapperItem,
+  deleteContextInWrapper,
+  updateContextInWrapper,
+} from "@/utils/utils";
 type Props = {
-  toDo: ToDo[];
   wrapper: Wrapper;
   setWrapper: React.Dispatch<React.SetStateAction<Wrapper>>;
 };
 //main
-const BoardMainContent = ({ wrapper, setWrapper, toDo }: Props) => {
+const BoardMainContent = ({ wrapper, setWrapper }: Props) => {
+  // sự kiện nhấp chuột vào context
+  const [menuPos, setMenuPos] = useState<ContextMenuPos>(null); //vị trí của modal dựa trên vị trí nhấp chuột
+  const [open, setOpen] = useState(false); // Boolean cho việc đóng mở modal
+  const [widthDom, setWidthDom] = useState(0);
+  const [selectedContext, setSelectedContext] = useState<ToDo | null>(null); //lấy context lúc xảy ra sự kiện click chuột
+  //  hàm xử lý sự kiện nhấp chuột + gửi dữ liệu sang modal
+  const handleContextMenu = (
+    e: React.MouseEvent<HTMLDivElement>,
+    context: ToDo
+  ) => {
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setMenuPos({
+      top: rect.top,
+      left: rect.left,
+      bottom: rect.bottom,
+      right: rect.right,
+    });
+    setOpen(true);
+    setWidthDom(rect.width);
+    setSelectedContext(context);
+  };
+
+  // xử lý phần nhập liệu
+  const [textArea, setTextArea] = useState("");
+  const onChangeText = (text: string) => {
+    setTextArea(text);
+  };
+
+  // xử lý phần thêm dữ liệu
+  const handleAddTask = useCallback(() => {
+    const text = textArea.trim();
+    if (!text) return; // Text rỗng thì không làm gì cả
+
+    setWrapper((prev) => addContextToWrapper(prev, idTask, text)); // Thêm dũ liệu vào Wrapper bên data.js
+    setTextArea(""); // reset phần nhập liệu cho lần nhập tiếp theo
+  }, [textArea, setWrapper]);
+
+  const [idTask, setIdTask] = useState("");
+  const handleInput = (id: string) => {
+    setIdTask(id);
+  };
+
+  // thêm Wrapper
+  const [showAddWrapper, setShowAddWrapper] = useState(false);
+  const [titleWrapper, setTitleWrapper] = useState("");
+  const oneChangeTitle = (title: string) => {
+    setTitleWrapper(title);
+  };
+
+  const handleAddWrapper = useCallback(() => {
+    setWrapper((prev) =>
+      addWrapperItem(prev, `idWrapper${Date.now()}`, titleWrapper)
+    );
+    setTitleWrapper("");
+  }, [titleWrapper]);
+
   return (
     <>
       <div className={style["box"]}>
@@ -67,26 +132,48 @@ const BoardMainContent = ({ wrapper, setWrapper, toDo }: Props) => {
                       ref={provided.innerRef}
                       {...provided.droppableProps}
                     >
-                      {value.contexts.map((ctx, index) => (
-                        <Draggable
-                          key={ctx.id}
-                          draggableId={ctx.id}
-                          index={index}
-                        >
-                          {(provided) => (
-                            <div
-                              key={ctx.id}
-                              className={style["card"]}
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                            >
-                              {ctx.text}
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
+                      {value.contexts.map((ctx, index) => {
+                        return (
+                          <Draggable
+                            key={ctx.id}
+                            draggableId={ctx.id}
+                            index={index}
+                          >
+                            {(provided) => (
+                              <div
+                                key={ctx.id}
+                                className={style["card"]}
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                onClick={(e) => handleContextMenu(e, ctx)}
+                                onContextMenu={(e) => handleContextMenu(e, ctx)}
+                              >
+                                {ctx.text}
+                              </div>
+                            )}
+                          </Draggable>
+                        );
+                      })}
                       {provided.placeholder}
+                      {/* phần nhập liệu  */}
+                      {idTask === key ? (
+                        <div className={style["addContext"]}>
+                          <textarea
+                            placeholder="Nhập tiêu đề hoặc dán liên kết"
+                            rows={3}
+                            value={textArea}
+                            onChange={(evt) => onChangeText(evt.target.value)}
+                          ></textarea>
+                          {/* nút thêm công việc */}
+                          <div className={style["listBtn"]}>
+                            <button onClick={handleAddTask}>Thêm thẻ</button>
+                            <button onClick={() => setIdTask("")}>
+                              <X strokeWidth={1.5} />
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   )}
                 </Droppable>
@@ -100,7 +187,8 @@ const BoardMainContent = ({ wrapper, setWrapper, toDo }: Props) => {
                     } as React.CSSProperties
                   }
                 >
-                  <button>
+                  {/* nút gọi phần nhập liệu */}
+                  <button onClick={() => handleInput(key)}>
                     <i>
                       <Plus strokeWidth={1.5} />
                     </i>
@@ -124,16 +212,53 @@ const BoardMainContent = ({ wrapper, setWrapper, toDo }: Props) => {
 
             {/* thêm wrapper */}
             <div className={style["btnAddWrapper"]}>
-              <button>
-                <i>
-                  <Plus strokeWidth={1.5} />
-                </i>
-                Thêm nào
-              </button>
+              {showAddWrapper && (
+                <div className={style["addContext"]}>
+                  <textarea
+                    placeholder="Nhập tên cho Wrapper"
+                    rows={3}
+                    value={titleWrapper}
+                    onChange={(evt) => oneChangeTitle(evt.target.value)}
+                  ></textarea>
+                  {/* nút thêm wrapper */}
+                  <div className={style["listBtn"]}>
+                    <button onClick={handleAddWrapper}>Thêm wrapper</button>
+                    <button onClick={() => setShowAddWrapper(false)}>
+                      <X strokeWidth={1.5} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {showAddWrapper === false ? (
+                <button onClick={() => setShowAddWrapper(!showAddWrapper)}>
+                  <i>
+                    <Plus strokeWidth={1.5} />
+                  </i>
+                  Thêm nào
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
       </div>
+
+      {/* phần modal */}
+      <ModalEdit
+        isOpen={open}
+        onClose={() => setOpen(false)}
+        menuPos={menuPos}
+        widthD={widthDom}
+        context={selectedContext}
+        onUpdate={(update) => {
+          setWrapper((prev) => updateContextInWrapper(prev, update));
+          setOpen(false);
+        }}
+        onDelete={(id) => {
+          setWrapper((prev) => deleteContextInWrapper(prev, id));
+          setOpen(false);
+        }}
+      />
     </>
   );
 };
