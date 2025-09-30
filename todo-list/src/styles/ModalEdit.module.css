@@ -1,0 +1,75 @@
+.box,
+.coating {
+  width: 100%;
+  height: 100vh;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+.box {
+  position: fixed;
+}
+
+.coating {
+  background-color: rgba(0, 0, 0, 0.546);
+  position: relative;
+}
+
+.modal {
+  display: flex;
+  gap: 8px;
+  position: absolute;
+}
+
+.left {
+}
+
+.left textarea {
+  border-radius: 6px;
+  border: none;
+  box-shadow: rgba(0, 0, 0, 0.15) 0px 5px 15px 0px;
+  outline: none;
+  padding: 8px;
+}
+
+.left button {
+  min-width: 52px;
+  padding: 10px 5px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: rgba(0, 0, 0, 0.15) 0px 5px 15px 0px;
+  background-color: rgb(24, 104, 218);
+  color: white;
+  transition: background-color 250ms ease;
+}
+
+.left button:hover {
+  background-color: rgb(23, 96, 199);
+}
+
+.right {
+}
+
+.listBtn {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.listBtn button {
+  cursor: pointer;
+  padding: 6px 16px;
+  min-width: 100px;
+  border-radius: 6px;
+  border: none;
+  background-color: #f1f2f4;
+  box-shadow: rgba(0, 0, 0, 0.15) 0px 5px 15px 0px;
+  transition: background-color 250ms ease;
+}
+
+.listBtn button:hover {
+  background-color: #d7d9dc;
+}
