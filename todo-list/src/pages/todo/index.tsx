@@ -1,120 +1,259 @@
 import BoardMainContent from "@/components/board-main-content/BoardMainContent";
 import InBoxListCard from "@/components/inbox-list-card/InboxListCard";
 import Nav from "@/components/nav/nav";
-import { ToDo } from "@/lib/types";
+import { BoardData, Task } from "@/lib/types";
 import { useState } from "react";
-import { initialToDo, initialWrapper } from "../api/data";
+import { initialToDo } from "../api/data";
 import { DragDropContext, DropResult } from "@hello-pangea/dnd";
+import {
+  insertItem,
+  moveItemBetweenLists,
+  removeAt,
+  reorder,
+  calculateNewPosition,
+} from "@/utils/helloPangea";
+import api from "@/lib/api";
 const ToDoCpn = () => {
-  const [toDo, setToDo] = useState<ToDo[]>(initialToDo);
-  const [wrapper, setWrapper] = useState(initialWrapper);
+  const [toDo, setToDo] = useState<Task[]>([]);
+  const [boardData, setBoardData] = useState<BoardData>({});
 
-  const handleDragEnd = (result: DropResult) => {
+  const handleDragEnd = async (result: DropResult) => {
     const { source, destination, draggableId } = result;
     if (!destination) return;
 
-    // 1. Inbox → Inbox
+    // ============================================================
+    // TRƯỜNG HỢP 1: INBOX -> INBOX (Sắp xếp lại Inbox)
+    // ============================================================
     if (source.droppableId === "inbox" && destination.droppableId === "inbox") {
-      setToDo((prev) => {
-        const newToDo = Array.from(prev);
-        const [moved] = newToDo.splice(source.index, 1);
-        newToDo.splice(destination.index, 0, moved);
-        return newToDo;
+      // BƯỚC 1: TẠO DANH SÁCH GIẢ LẬP
+      // (Để biết được sau khi thả tay ra, task đó sẽ đứng giữa ai và ai)
+      const newOrderedList = reorder(toDo, source.index, destination.index);
+
+      // BƯỚC 2: TÍNH TOÁN POSITION
+      // (Dựa vào danh sách giả lập trên, tính ra con số position mới)
+      const newPos = calculateNewPosition(newOrderedList, destination.index);
+
+      // BƯỚC 3: CẬP NHẬT GIAO DIỆN NGAY (Optimistic Update)
+      // (Cập nhật state ngay lập tức để người dùng không thấy bị giật)
+      // Lưu ý: Phải cập nhật cả giá trị 'position' trong object task để lần kéo sau tính toán vẫn đúng
+      const updatedList = newOrderedList.map((task) => {
+        if (task.id.toString() === draggableId) {
+          return { ...task, position: newPos }; // Gán position mới cho task vừa kéo
+        }
+        return task;
       });
+
+      setToDo(updatedList);
+
+      // BƯỚC 4: GỌI API LƯU VÀO DATABASE (Chạy ngầm)
+      try {
+        // Gọi API mà chúng ta vừa viết ở backend
+        api.put(`/update-status/${draggableId}`, {
+          idColumns: "inbox", // Vì đang ở trong Inbox
+          position: newPos,
+        });
+        console.log(`✅ Đã cập nhật task ${draggableId} vị trí mới: ${newPos}`);
+      } catch (error) {
+        console.error("❌ Lỗi lưu vị trí:", error);
+        // Nếu muốn kỹ tính thì revert lại state cũ ở đây
+      }
+
       return;
     }
 
-    // 2. Inbox → Board
+    // ============================================================
+    // TRƯỜNG HỢP 3: INBOX -> BOARD (Kéo từ Inbox sang cột Board)
+    // ============================================================
     if (source.droppableId === "inbox" && destination.droppableId !== "inbox") {
-      const movedTask = toDo.find((t) => t.id === draggableId);
+      const movedTask = toDo.find((t) => t.id.toString() === draggableId);
       if (!movedTask) return;
 
-      setWrapper((prevWrapper) => {
-        const newContexts = Array.from(
-          prevWrapper[destination.droppableId].contexts
+      // --- A. TÍNH TOÁN VỊ TRÍ MỚI ---
+      // Lấy danh sách items hiện tại của cột đích
+      const destColumn = boardData[destination.droppableId];
+      const destItems = [...destColumn.items];
+
+      // Chèn task vào vị trí mới để tính toán (giả lập)
+      // Lưu ý: insertItem trả về mảng mới đã có item đó
+      const newDestList = insertItem(destItems, movedTask, destination.index);
+
+      // Tính position dựa trên danh sách đã chèn
+      const newPos = calculateNewPosition(newDestList, destination.index);
+
+      // --- B. CẬP NHẬT STATE (Optimistic UI) ---
+      // 1. Xóa khỏi Inbox (toDo)
+      setToDo((prev) => prev.filter((t) => t.id.toString() !== draggableId));
+
+      // 2. Thêm vào Board (boardData) với position mới
+      setBoardData((prev) => {
+        const currentDestCol = prev[destination.droppableId];
+        // Tạo task mới với position đã tính
+        const taskWithNewPos = { ...movedTask, position: newPos };
+
+        // Chèn vào list
+        const newItems = insertItem(
+          currentDestCol.items,
+          taskWithNewPos,
+          destination.index
         );
-        const newId = `${destination.droppableId}-${Date.now()}`;
-        newContexts.splice(destination.index, 0, {
-          id: newId,
-          text: movedTask.context,
+
+        return {
+          ...prev,
+          [destination.droppableId]: {
+            ...currentDestCol,
+            items: newItems,
+          },
+        };
+      });
+
+      // --- C. GỌI API ---
+      try {
+        // Lấy ID thật của cột (dbId) từ dữ liệu Board
+        // destination.droppableId có thể là "col-123", nhưng DB cần số 123
+        const realDbColumnId = boardData[destination.droppableId].dbId;
+
+        await api.put(`/update-task-position/${draggableId}`, {
+          idColumns: realDbColumnId, // <--- ID ĐỘNG LẤY TỪ ĐÂY
+          position: newPos,
         });
-        return {
-          ...prevWrapper,
-          [destination.droppableId]: {
-            ...prevWrapper[destination.droppableId],
-            contexts: newContexts,
-          },
-        };
-      });
-
-      setToDo((prev) => prev.filter((t) => t.id !== movedTask.id));
+        console.log(
+          `✅ Đã chuyển sang cột ${realDbColumnId} với vị trí ${newPos}`
+        );
+      } catch (error) {
+        console.error("❌ Lỗi di chuyển:", error);
+        // Revert state nếu cần
+      }
       return;
     }
 
-    // 3. Board → Board
-    if (source.droppableId !== "inbox" && destination.droppableId !== "inbox") {
-      setWrapper((prevWrapper) => {
-        const sourceContexts = Array.from(
-          prevWrapper[source.droppableId].contexts
-        );
-        if (source.droppableId === destination.droppableId) {
-          const [movedItem] = sourceContexts.splice(source.index, 1);
-          sourceContexts.splice(destination.index, 0, movedItem);
-          return {
-            ...prevWrapper,
-            [source.droppableId]: {
-              ...prevWrapper[source.droppableId],
-              contexts: sourceContexts,
-            },
-          };
-        }
-        const [movedItem] = sourceContexts.splice(source.index, 1);
-        const destContexts = Array.from(
-          prevWrapper[destination.droppableId].contexts
-        );
-        const newItem = { ...movedItem };
-        destContexts.splice(destination.index, 0, newItem);
-        return {
-          ...prevWrapper,
-          [source.droppableId]: {
-            ...prevWrapper[source.droppableId],
-            contexts: sourceContexts,
-          },
-          [destination.droppableId]: {
-            ...prevWrapper[destination.droppableId],
-            contexts: destContexts,
-          },
-        };
-      });
-      return;
-    }
-
-    // 4. Board → Inbox
+    // ============================================================
+    // TRƯỜNG HỢP 3: BOARD -> INBOX (Kéo từ cột bất kỳ về Inbox)
+    // ============================================================
     if (source.droppableId !== "inbox" && destination.droppableId === "inbox") {
-      const movedItem = wrapper[source.droppableId].contexts[source.index];
+      // 1. Lấy task từ cột nguồn
+      const sourceColumn = boardData[source.droppableId];
+      const movedTask = sourceColumn.items[source.index];
 
-      setWrapper((prevWrapper) => {
-        const sourceContexts = Array.from(
-          prevWrapper[source.droppableId].contexts
-        );
-        sourceContexts.splice(source.index, 1);
+      // 2. Tính toán vị trí mới trong Inbox
+      // (Giả lập chèn vào Inbox để tính toán)
+      const newInboxList = insertItem(toDo, movedTask, destination.index);
+      const newPos = calculateNewPosition(newInboxList, destination.index);
+
+      // 3. Cập nhật State (Optimistic UI)
+      // A. Xóa khỏi Board
+      setBoardData((prev) => {
+        const newSourceItems = [...prev[source.droppableId].items];
+        newSourceItems.splice(source.index, 1);
         return {
-          ...prevWrapper,
+          ...prev,
           [source.droppableId]: {
-            ...prevWrapper[source.droppableId],
-            contexts: sourceContexts,
+            ...prev[source.droppableId],
+            items: newSourceItems,
           },
         };
       });
 
-      setToDo((prevToDo) => {
-        const newToDo = Array.from(prevToDo);
-        newToDo.splice(destination.index, 0, {
-          id: `inbox-${Date.now()}`,
-          context: movedItem.text,
-        });
-        return newToDo;
+      // B. Thêm vào Inbox với position mới
+      setToDo((prev) => {
+        const taskWithNewPos = { ...movedTask, position: newPos };
+        return insertItem(prev, taskWithNewPos, destination.index);
       });
+
+      // 4. Gọi API
+      try {
+        await api.put(`/update-task-position/${draggableId}`, {
+          idColumns: "inbox", // Backend sẽ tự xử lý tìm cột Inbox
+          position: newPos,
+        });
+        console.log(`✅ Board -> Inbox thành công! Pos: ${newPos}`);
+      } catch (error) {
+        console.error("Lỗi Board -> Inbox:", error);
+      }
+      return;
+    }
+
+    // ============================================================
+    // TRƯỜNG HỢP 4: BOARD -> BOARD (Di chuyển giữa các cột hoặc trong cùng 1 cột)
+    // ============================================================
+    if (source.droppableId !== "inbox" && destination.droppableId !== "inbox") {
+      const sourceCol = boardData[source.droppableId];
+      const destCol = boardData[destination.droppableId];
+      const movedTask = sourceCol.items[source.index];
+
+      // A. CÙNG 1 CỘT (Reorder)
+      if (source.droppableId === destination.droppableId) {
+        const newItems = reorder(
+          sourceCol.items,
+          source.index,
+          destination.index
+        );
+        const newPos = calculateNewPosition(newItems, destination.index);
+
+        // Update State
+        const updatedItems = newItems.map((t) =>
+          t.id.toString() === draggableId ? { ...t, position: newPos } : t
+        );
+        setBoardData((prev) => ({
+          ...prev,
+          [source.droppableId]: { ...sourceCol, items: updatedItems },
+        }));
+
+        // Update API
+        try {
+          await api.put(`/update-task-position/${draggableId}`, {
+            idColumns: sourceCol.dbId,
+            position: newPos,
+          });
+        } catch (e) {
+          console.error(e);
+        }
+        return;
+      }
+
+      // B. KHÁC CỘT (Move)
+      // 1. Tính toán vị trí bên cột đích
+      const newDestListForCalc = insertItem(
+        destCol.items,
+        movedTask,
+        destination.index
+      );
+      const newPos = calculateNewPosition(
+        newDestListForCalc,
+        destination.index
+      );
+
+      // 2. Update State
+      setBoardData((prev) => {
+        const sourceItems = [...prev[source.droppableId].items];
+        sourceItems.splice(source.index, 1); // Xóa bên nguồn
+
+        const destItems = [...prev[destination.droppableId].items];
+        const taskWithNewPos = { ...movedTask, position: newPos };
+        destItems.splice(destination.index, 0, taskWithNewPos); // Thêm bên đích
+
+        return {
+          ...prev,
+          [source.droppableId]: {
+            ...prev[source.droppableId],
+            items: sourceItems,
+          },
+          [destination.droppableId]: {
+            ...prev[destination.droppableId],
+            items: destItems,
+          },
+        };
+      });
+
+      // 3. Update API
+      try {
+        await api.put(`/update-task-position/${draggableId}`, {
+          idColumns: destCol.dbId, // ID thật cột đích
+          position: newPos,
+        });
+        console.log(`✅ Board -> Board thành công!`);
+      } catch (e) {
+        console.error(e);
+      }
       return;
     }
   };
@@ -130,9 +269,8 @@ const ToDoCpn = () => {
             </div>
             <div className="col col-9">
               <BoardMainContent
-                wrapper={wrapper}
-                setWrapper={setWrapper}
-                toDo={toDo}
+                boardData={boardData}
+                setBoardData={setBoardData}
               />
             </div>
           </div>
