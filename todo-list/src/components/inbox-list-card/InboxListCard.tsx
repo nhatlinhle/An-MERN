@@ -8,15 +8,16 @@ import {
 } from "lucide-react";
 import style from "@/styles/InBoxListCard.module.css";
 import Image from "next/image";
-import { ContextMenuPos, ToDo } from "@/lib/types";
-import { useCallback, useState } from "react";
+import { useEffect, useState } from "react";
 import { Draggable, Droppable } from "@hello-pangea/dnd";
 import ModalEdit from "../modal-edit/ModalEdit";
-import { addToDo, deleteToDo, updateToDo } from "@/utils/utils";
+import { addToDo, deleteToDo, updateToDo } from "@/utils/inboxUtils";
+import api from "@/lib/api"; // Import axios instance
+import { ContextMenuPos, Task } from "@/lib/types"; // Import type Task chuẩn
 
 type Props = {
-  toDo: ToDo[];
-  setToDo: React.Dispatch<React.SetStateAction<ToDo[]>>;
+  toDo: Task[];
+  setToDo: React.Dispatch<React.SetStateAction<Task[]>>;
 };
 
 // main
@@ -27,29 +28,91 @@ const InBoxListCard = ({ toDo, setToDo }: Props) => {
     setTextArea(text);
   };
 
-  // xử lý phần thêm dữ liệu
-  const handleAdd = useCallback(() => {
-    const text = textArea.trim();
-    if (!text) return; // Text rỗng thì không làm gì cả
-
-    setToDo((prev) => addToDo(prev, text)); // Thêm dữ liệu vào ToDo bên data.js bằng utils
-    setTextArea(""); // reset phần nhập liệu cho lần nhập tiếp theo
-  }, [textArea, setToDo]);
-
   // sự kiện nhấp chuột vào context
   const [menuPos, setMenuPos] = useState<ContextMenuPos>(null); //vị trí của modal dựa trên vị trí nhấp chuột
   const [open, setOpen] = useState(false); // Boolean cho việc đóng mở modal
   const [widthDom, setWidthDom] = useState(0);
-  const [selectedContext, setSelectedContext] = useState<ToDo | null>(null); //lấy context lúc xảy ra sự kiện click chuột
-  //  hàm xử lý sự kiện nhấp chuột + gửi dữ liệu sang modal
+  const [selectedContext, setSelectedContext] = useState<Task | null>(null); //lấy context lúc xảy ra sự kiện click chuột
+  const [showInput, setShowInput] = useState(false);
+
+  // Lưu ID của cột Inbox để dùng khi tạo Task mới
+  const [inboxId, setInboxId] = useState<number | string | null>(null);
+
+  // --- 1. HANDLE ADD (THÊM MỚI) ---
+  const handleAdd = async () => {
+    const text = textArea.trim();
+    if (!text) return;
+
+    if (!inboxId) {
+      alert("Đang tải dữ liệu, vui lòng đợi...");
+      return;
+    }
+
+    try {
+      // B1: Gọi API tạo task
+      const response = await api.post("/create-task", {
+        title: text,
+        column_id: inboxId,
+      });
+
+      console.log("🔍 Dữ liệu từ API:", response.data); // <--- Thêm dòng này
+
+      // B2: Dùng util addToDo để cập nhật State
+      // response.data chính là newTaskFromDB mà util đang cần
+      setToDo((prev) => addToDo(prev, response.data.data));
+
+      setTextArea(""); // Reset input
+    } catch (error) {
+      console.error("Lỗi thêm task:", error);
+      alert("Không thể thêm thẻ mới.");
+    }
+  };
+
+  // --- 2. HANDLE UPDATE & DELETE (Dùng cho ModalEdit) ---
+  // Hàm xử lý cập nhật (truyền vào Modal)
+  const onUpdateTask = async (updatedTaskPart: any) => {
+    if (!selectedContext) return;
+
+    try {
+      await api.put(`/update-task/${selectedContext.id}`, {
+        title: updatedTaskPart.title,
+      });
+
+      // Tạo object update chuẩn format mà util yêu cầu {id, title}
+      setToDo((prev) =>
+        updateToDo(prev, {
+          id: selectedContext.id,
+          title: updatedTaskPart.title || updatedTaskPart.text,
+        })
+      );
+
+      setOpen(false);
+    } catch (error) {
+      console.error("Lỗi update:", error);
+    }
+  };
+
+  // Hàm xử lý xóa (truyền vào Modal)
+  const onDeleteTask = async (id: string) => {
+    try {
+      // B1: Gọi API Delete
+      await api.delete(`/delete-task/${id}`);
+
+      // B2: Dùng util deleteToDo để cập nhật State
+      setToDo((prev) => deleteToDo(prev, id));
+      setOpen(false);
+    } catch (error) {
+      console.error("Lỗi xóa:", error);
+    }
+  };
+
+  // --- 3. HANDLE CONTEXT MENU ---
   const handleContextMenu = (
     e: React.MouseEvent<HTMLDivElement>,
-    context: ToDo
+    context: Task
   ) => {
     e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
-
-    // lấy vị trí của DOM hiện tại
     setMenuPos({
       top: rect.top,
       left: rect.left,
@@ -61,7 +124,38 @@ const InBoxListCard = ({ toDo, setToDo }: Props) => {
     setSelectedContext(context);
   };
 
-  const [showInput, setShowInput] = useState(false);
+  // --- 4. FETCH DATA ---
+  useEffect(() => {
+    const fetchInboxTasks = async () => {
+      try {
+        const response = await api.get("/board");
+        const columnsFromDB = response.data.data; // Tùy cấu trúc backend trả về
+
+        // Tìm cột Inbox
+        const inboxColumn = columnsFromDB.find(
+          (col: any) => col.type === "inbox"
+        );
+
+        if (inboxColumn) {
+          setInboxId(inboxColumn.id); // Lưu ID cột Inbox
+
+          // Map dữ liệu từ DB sang Frontend Task Type
+          const mappedTasks: Task[] = inboxColumn.tasks.map((t: any) => ({
+            id: t.id.toString(),
+            title: t.title,
+            columnId: inboxColumn.id,
+            position: t.position,
+          }));
+
+          setToDo(mappedTasks);
+        }
+      } catch (error) {
+        console.error("❌ Lỗi load Inbox:", error);
+      }
+    };
+
+    fetchInboxTasks();
+  }, [setToDo]);
   return (
     <>
       <div className={style["box"]}>
@@ -114,7 +208,7 @@ const InBoxListCard = ({ toDo, setToDo }: Props) => {
                         {...provided.draggableProps}
                         {...provided.dragHandleProps}
                       >
-                        {item.text}
+                        {item.title}
                       </div>
                     )}
                   </Draggable>
@@ -184,12 +278,10 @@ const InBoxListCard = ({ toDo, setToDo }: Props) => {
         widthD={widthDom}
         context={selectedContext}
         onUpdate={(update) => {
-          setToDo((prev) => updateToDo(prev, update));
-          setOpen(false);
+          onUpdateTask(update);
         }}
         onDelete={(id) => {
-          setToDo((prev) => deleteToDo(prev, id));
-          setOpen(false);
+          onDeleteTask(id);
         }}
       />
     </>

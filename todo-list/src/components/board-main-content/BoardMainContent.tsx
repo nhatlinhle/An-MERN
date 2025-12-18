@@ -1,4 +1,4 @@
-import { ContextMenuPos, Contexts, ToDo, Wrapper } from "@/lib/types";
+import { ContextMenuPos, Task, BoardData } from "@/lib/types";
 import style from "@/styles/BoardMainContent.module.css";
 import { Draggable, Droppable } from "@hello-pangea/dnd";
 import {
@@ -10,29 +10,50 @@ import {
   Plus,
   X,
 } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import ModalEdit from "../modal-edit/ModalEdit";
 import {
-  addContextToWrapper,
-  addWrapperItem,
-  deleteContextInWrapper,
-  updateContextInWrapper,
-} from "@/utils/utils";
+  addColumnToBoard,
+  addTaskToBoard,
+  deleteTaskFromBoard,
+  formatBoardData,
+  updateTaskInBoard,
+  replaceTempColumn,
+} from "@/utils/boardUtils";
+import api from "@/lib/api";
+
 type Props = {
-  wrapper: Wrapper;
-  setWrapper: React.Dispatch<React.SetStateAction<Wrapper>>;
+  boardData: BoardData;
+  setBoardData: React.Dispatch<React.SetStateAction<BoardData>>;
 };
 //main
-const BoardMainContent = ({ wrapper, setWrapper }: Props) => {
-  // sự kiện nhấp chuột vào context
-  const [menuPos, setMenuPos] = useState<ContextMenuPos>(null); //vị trí của modal dựa trên vị trí nhấp chuột
-  const [open, setOpen] = useState(false); // Boolean cho việc đóng mở modal
+const BoardMainContent = ({ boardData, setBoardData }: Props) => {
+  // --- STATE QUẢN LÝ MODAL & CONTEXT MENU ---
+  const [menuPos, setMenuPos] = useState<ContextMenuPos>(null);
+  const [open, setOpen] = useState(false);
   const [widthDom, setWidthDom] = useState(0);
-  const [selectedContext, setSelectedContext] = useState<ToDo | null>(null); //lấy context lúc xảy ra sự kiện click chuột
-  //  hàm xử lý sự kiện nhấp chuột + gửi dữ liệu sang modal
+  const [selectedContext, setSelectedContext] = useState<Task | null>(null);
+
+  // --- 4. FETCH DATA ---
+  useEffect(() => {
+    const fetchBoardData = async () => {
+      try {
+        const response = await api.get("/board");
+        // Dùng hàm util để format dữ liệu gọn gàng
+        const { board } = formatBoardData(response.data.data);
+        setBoardData(board);
+      } catch (error) {
+        console.error("❌ Lỗi load Board Data:", error);
+      }
+    };
+
+    fetchBoardData();
+  }, [setBoardData]);
+
+  // --- 2. XỬ LÝ CLICK CHUỘT PHẢI (CONTEXT MENU) ---
   const handleContextMenu = (
     e: React.MouseEvent<HTMLDivElement>,
-    context: ToDo
+    items: Task
   ) => {
     e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
@@ -44,43 +65,133 @@ const BoardMainContent = ({ wrapper, setWrapper }: Props) => {
     });
     setOpen(true);
     setWidthDom(rect.width);
-    setSelectedContext(context);
+    setSelectedContext(items);
   };
 
-  // xử lý phần nhập liệu
+  // --- 3. XỬ LÝ THÊM TASK MỚI (ADD TASK) ---
+  // State quản lý input nhập liệu
   const [textArea, setTextArea] = useState("");
-  const onChangeText = (text: string) => {
-    setTextArea(text);
+  // State lưu ID của cột đang mở ô nhập liệu (idTask ở đây đóng vai trò là idColumn)
+  const [activeColumnId, setActiveColumnId] = useState("");
+
+  const handleInput = (columnId: string) => {
+    setActiveColumnId(columnId);
   };
 
-  // xử lý phần thêm dữ liệu
-  const handleAddTask = useCallback(() => {
+  const handleAddTask = useCallback(async () => {
     const text = textArea.trim();
-    if (!text) return; // Text rỗng thì không làm gì cả
+    if (!text || !activeColumnId) return;
 
-    setWrapper((prev) => addContextToWrapper(prev, idTask, text)); // Thêm dũ liệu vào Wrapper bên data.js
-    setTextArea(""); // reset phần nhập liệu cho lần nhập tiếp theo
-  }, [textArea, setWrapper]);
+    // Lấy thông tin cột hiện tại để lấy dbId
+    const currentColumn = boardData[activeColumnId];
+    if (!currentColumn) return;
 
-  const [idTask, setIdTask] = useState("");
-  const handleInput = (id: string) => {
-    setIdTask(id);
-  };
+    // A. Optimistic Update (Cập nhật giao diện trước)
+    setBoardData((prev) => addTaskToBoard(prev, activeColumnId, text));
+    setTextArea(""); // Reset input
 
-  // thêm Wrapper
-  const [showAddWrapper, setShowAddWrapper] = useState(false);
-  const [titleWrapper, setTitleWrapper] = useState("");
-  const oneChangeTitle = (title: string) => {
-    setTitleWrapper(title);
-  };
+    // B. Gọi API (Lưu vào DB)
+    try {
+      await api.post("/create-task", {
+        title: text,
+        column_id: currentColumn.dbId, // Gửi ID số lên server
+      });
+      console.log("✅ Tạo task thành công");
+    } catch (error) {
+      console.error("❌ Lỗi tạo task:", error);
+      // Có thể reload lại data nếu lỗi để đồng bộ
+    }
+  }, [textArea, activeColumnId, boardData, setBoardData]);
 
-  const handleAddWrapper = useCallback(() => {
-    setWrapper((prev) =>
-      addWrapperItem(prev, `idWrapper${Date.now()}`, titleWrapper)
+  // --- 4. XỬ LÝ SỬA / XÓA TASK (Dùng cho ModalEdit) ---
+
+  const handleUpdateTask = async (updatedContent: any) => {
+    if (!selectedContext) return;
+    const newTitle = updatedContent.title || updatedContent.text;
+
+    // A. Update State
+    setBoardData((prev) =>
+      updateTaskInBoard(
+        prev,
+        selectedContext.id,
+        newTitle,
+        Number(selectedContext.columnId) // Ép kiểu về number nếu cần
+      )
     );
-    setTitleWrapper("");
-  }, [titleWrapper]);
 
+    // B. Call API
+    try {
+      await api.put(`/update-task/${selectedContext.id}`, { title: newTitle });
+    } catch (error) {
+      console.error("Lỗi update:", error);
+    }
+    setOpen(false);
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    if (!selectedContext) return;
+
+    // A. Update State
+    setBoardData((prev) =>
+      deleteTaskFromBoard(prev, taskId, Number(selectedContext.columnId))
+    );
+
+    // B. Call API
+    try {
+      await api.delete(`/delete-task/${taskId}`);
+    } catch (error) {
+      console.error("Lỗi delete:", error);
+    }
+    setOpen(false);
+  };
+
+  // --- 5. XỬ LÝ THÊM CỘT (WRAPPER/COLUMN) ---
+  const [showAddBoardData, setShowAddBoardData] = useState(false);
+  const [titleBoardData, setTitleBoardData] = useState("");
+
+  const handleAddColumn = useCallback(async () => {
+    if (!titleBoardData.trim()) return;
+
+    // 1. Tạo ID tạm tại đây để lát nữa còn biết đường tìm mà thay thế
+    const tempId = Date.now();
+
+    // 2. Optimistic Update (Cập nhật giao diện ngay với ID tạm)
+    // SỬA LẠI: Thay vì gọi addColumnToBoard bên trong setBoardData,
+    // ta tự build object để kiểm soát tempId, hoặc sửa addColumnToBoard nhận tempId.
+    // Cách nhanh nhất là sửa trực tiếp ở đây:
+
+    setBoardData((prev) => {
+      // Logic giống hệt addColumnToBoard nhưng dùng tempId do mình tạo
+      const newColumn = {
+        id: `col-${tempId}`,
+        dbId: tempId, // Đang là ID tạm
+        title: titleBoardData,
+        type: "normal",
+        items: [],
+        backgroundColor: "#ffffff",
+        btnHoverBg: "#f1f2f4",
+      };
+      return { ...prev, [newColumn.id]: newColumn };
+    });
+
+    // Reset form
+    setTitleBoardData("");
+    setShowAddBoardData(false);
+
+    // 3. Gọi API (Lưu vào DB)
+    try {
+      const res = await api.post("/create-column", { title: titleBoardData });
+      const realColumn = res.data.data; // Server trả về cột có ID thật (ví dụ id: 5)
+
+      console.log("✅ Đã có ID thật từ server:", realColumn.id);
+
+      // 4. QUAN TRỌNG: Thay thế cột ID tạm bằng cột ID thật trong State
+      setBoardData((prev) => replaceTempColumn(prev, tempId, realColumn));
+    } catch (error) {
+      console.error("Lỗi tạo cột:", error);
+      // Xử lý lỗi: Xóa cột tạm nếu API fail (Optional)
+    }
+  }, [titleBoardData, setBoardData]);
   return (
     <>
       <div className={style["box"]}>
@@ -100,20 +211,20 @@ const BoardMainContent = ({ wrapper, setWrapper }: Props) => {
         </div>
         <div className={style["test"]}>
           <div className={style["board"]}>
-            {/* list wrapper  */}
-            {Object.entries(wrapper).map(([key, value]) => (
+            {/* list boardData  */}
+            {Object.entries(boardData).map(([key, value]) => (
               <div
                 key={key}
                 className={style["list-wrapper"]}
                 style={
                   {
-                    "--list-wrapper-bg-color": value.style.backgroundColor,
+                    "--list-wrapper-bg-color": value.backgroundColor,
                   } as React.CSSProperties
                 }
               >
                 {/* header */}
                 <div className={style["list-header"]}>
-                  <span>{value.name}</span>
+                  <span>{value.title}</span>
                   <div className={style["nav-icons"]}>
                     <i>
                       <ChevronsRightLeft strokeWidth={1.5} />
@@ -132,7 +243,7 @@ const BoardMainContent = ({ wrapper, setWrapper }: Props) => {
                       ref={provided.innerRef}
                       {...provided.droppableProps}
                     >
-                      {value.contexts.map((ctx, index) => {
+                      {value.items.map((ctx, index) => {
                         return (
                           <Draggable
                             key={ctx.id}
@@ -149,7 +260,7 @@ const BoardMainContent = ({ wrapper, setWrapper }: Props) => {
                                 onClick={(e) => handleContextMenu(e, ctx)}
                                 onContextMenu={(e) => handleContextMenu(e, ctx)}
                               >
-                                {ctx.text}
+                                {ctx.title}
                               </div>
                             )}
                           </Draggable>
@@ -157,18 +268,18 @@ const BoardMainContent = ({ wrapper, setWrapper }: Props) => {
                       })}
                       {provided.placeholder}
                       {/* phần nhập liệu  */}
-                      {idTask === key ? (
+                      {activeColumnId === key ? (
                         <div className={style["addContext"]}>
                           <textarea
                             placeholder="Nhập tiêu đề hoặc dán liên kết"
                             rows={3}
                             value={textArea}
-                            onChange={(evt) => onChangeText(evt.target.value)}
+                            onChange={(evt) => handleInput(evt.target.value)}
                           ></textarea>
                           {/* nút thêm công việc */}
                           <div className={style["listBtn"]}>
                             <button onClick={handleAddTask}>Thêm thẻ</button>
-                            <button onClick={() => setIdTask("")}>
+                            <button onClick={() => setActiveColumnId("")}>
                               <X strokeWidth={1.5} />
                             </button>
                           </div>
@@ -183,7 +294,7 @@ const BoardMainContent = ({ wrapper, setWrapper }: Props) => {
                   className={style["list-footer"]}
                   style={
                     {
-                      "--btn-hover-bg": value.style.btnHoverBg,
+                      "--btn-hover-bg": value.btnHoverBg,
                     } as React.CSSProperties
                   }
                 >
@@ -198,7 +309,7 @@ const BoardMainContent = ({ wrapper, setWrapper }: Props) => {
                     className={style["nav-icons"]}
                     style={
                       {
-                        "--btn-hover-bg": value.style.btnHoverBg,
+                        "--btn-hover-bg": value.btnHoverBg,
                       } as React.CSSProperties
                     }
                   >
@@ -210,28 +321,28 @@ const BoardMainContent = ({ wrapper, setWrapper }: Props) => {
               </div>
             ))}
 
-            {/* thêm wrapper */}
+            {/* thêm boardData */}
             <div className={style["btnAddWrapper"]}>
-              {showAddWrapper && (
+              {showAddBoardData && (
                 <div className={style["addContext"]}>
                   <textarea
                     placeholder="Nhập tên cho Wrapper"
                     rows={3}
-                    value={titleWrapper}
-                    onChange={(evt) => oneChangeTitle(evt.target.value)}
+                    value={titleBoardData}
+                    onChange={(evt) => setTitleBoardData(evt.target.value)}
                   ></textarea>
-                  {/* nút thêm wrapper */}
+                  {/* nút thêm boardData */}
                   <div className={style["listBtn"]}>
-                    <button onClick={handleAddWrapper}>Thêm wrapper</button>
-                    <button onClick={() => setShowAddWrapper(false)}>
+                    <button onClick={handleAddColumn}>Thêm wrapper</button>
+                    <button onClick={() => setShowAddBoardData(false)}>
                       <X strokeWidth={1.5} />
                     </button>
                   </div>
                 </div>
               )}
 
-              {showAddWrapper === false ? (
-                <button onClick={() => setShowAddWrapper(!showAddWrapper)}>
+              {showAddBoardData === false ? (
+                <button onClick={() => setShowAddBoardData(!showAddBoardData)}>
                   <i>
                     <Plus strokeWidth={1.5} />
                   </i>
@@ -243,21 +354,15 @@ const BoardMainContent = ({ wrapper, setWrapper }: Props) => {
         </div>
       </div>
 
-      {/* phần modal */}
+      {/* --- MODAL EDIT --- */}
       <ModalEdit
         isOpen={open}
         onClose={() => setOpen(false)}
         menuPos={menuPos}
         widthD={widthDom}
         context={selectedContext}
-        onUpdate={(update) => {
-          setWrapper((prev) => updateContextInWrapper(prev, update));
-          setOpen(false);
-        }}
-        onDelete={(id) => {
-          setWrapper((prev) => deleteContextInWrapper(prev, id));
-          setOpen(false);
-        }}
+        onUpdate={handleUpdateTask} // Gắn hàm xử lý mới
+        onDelete={handleDeleteTask} // Gắn hàm xử lý mới
       />
     </>
   );

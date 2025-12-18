@@ -11,10 +11,10 @@ const ModalEdit = ({
   onUpdate,
   onDelete,
 }: ModalEditProps) => {
-  const [text, setText] = useState(context?.text || "");
+  const [text, setText] = useState(context?.title || "");
 
   useEffect(() => {
-    setText(context?.text || "");
+    setText(context?.title || "");
   }, [context]);
 
   if (!isOpen || !context) return null;
@@ -37,7 +37,7 @@ const ModalEdit = ({
             ></textarea>
             <div>
               {/* nút lưu */}
-              <button onClick={() => onUpdate({ ...context, text: text })}>
+              <button onClick={() => onUpdate({ ...context, title: text })}>
                 Lưu
               </button>
             </div>
